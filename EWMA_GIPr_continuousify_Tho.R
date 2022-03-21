@@ -74,34 +74,50 @@ ff_GIPr<-function(omega,theta){
 F_Xstar <- sum(omega)*ff_GIPr(omega = x,theta = thetaX)*pnorm(x,omega,sigma)
 ###########################################################################
 #Denote:
-r = 2
-x = 3
-phi = 0.6
-lambda_GIPr = 3
-H = 10.8  #based on sample size of the previous paper
-m = 100*H
+  r = 2
+  phi = 0.5 
+  lambda_GIPr = 5
+  x = 3
+  H = 10.8  #based on sample size of the previous paper
+  m = 100*H
+  tn = m + 1
+  K = 3
+  lambda_EWMA = 0.2
+  thetaT = c(phi, lambda_GIPr)
+sigma = 0.15
 # Creat matrix Q and transition probability matrix 
 tn = m + 1 
 Q <- matrix(0, nrow = tn, ncol = tn)
-# Creat Qkj generic elements 
+# Creat Qk0 and Qkj generic elements 
+F_Xstar_k0 <- function(x,theta, sigma){sum(omega)*(ff_GIPr(omega,theta)*pnorm(x,omega,sigma))}
 
-F_Xstar_kj <- function(omega,j0,j1,theta,sigma){
-  sum(omega)*(ff_GIPr(omega, theta)*pnorm(j0,omega,sigma) - ff_GIPr(omega,theta) * pnorm(j1,omega,sigma))}
-
-for (k in 1:tn){
-    while(TRUE){
-      j0 <- (1 - lambda_EWMA)*(2*k - 1)*Delta/( 2 - lambda_EWMA)
-      j1 <- ((1 - lambda_EWMA)*(2*k - 1)*Delta + 2*Delta)/( 2 - lambda_EWMA)
-    } 
-    if(j>tn){break}
-    else{Q[k,j] = Q[k,j] + F_Xstar_kj(omega,j0, j1, theta, sigma)}
-} 
-
+F_Xstar_kj <- function(x1,x2,theta,sigma){
+  sum(omega)*(ff_GIPr(omega,theta)*pnorm(x1,omega,sigma) 
+              - ff_GIPr(omega,theta) * pnorm(x2,omega,sigma))}
+##################################################
+for (k in 1:tn){Hk = (2*k - 1)*Delta
+  for( j in 1:tn){
+  if( j == 1 ){
+    x0 <- (-1 + lambda_EWMA)*Hk/lambda_EWMA + 1
+    Q[k,j] <- F_Xstar_k0(x = x0, theta = thetaT, sigma = sigma)
+  } 
+  else{
+  x1 <- (2*j*Delta + Hk*Delta - Hk)/lambda_EWMA + 1;
+  x2 <- (2*j*Delta - 2*Delta + Hk*Delta - Hk)/lambda_EWMA + 1;
+  }
+  F_Xstar_kj <- function(x1,x2,theta,sigma){
+    sum(omega)*(ff_GIPr(omega,theta)*pnorm(x1,omega,sigma) 
+                - ff_GIPr(omega,theta)*pnorm(x2,omega,sigma))}
+  Q[k,j] = Q[k,j] + F_Xstar_kj(x1,x2,thetaT,sigma);
+  }
+ }
+#################################################
   I <- diag(1,tn)
   One <- array(1,tn)
   ARL <- solve(I-Q, One)
   print(ARL[1])
   nu1 <- ARL[1]
+
 #######################################
 #SDRL1
 
@@ -110,9 +126,7 @@ avec<-rep(0,tn)
 y1<-rep(1,tn)
 nu2<-2*avec%*%W%*%W%*%(Q)%*%y1
 SDRL<-sqrt(nu2-nu1^2)
-
 print(c(r,phi,omega,lambda_EWMA,nu1,SDRL))
-
 #########################################################################
   
 
